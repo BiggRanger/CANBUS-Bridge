@@ -12,14 +12,14 @@
  * V1.0.4 (2020.01.12) - Add options to control output reporting
  * V1.0.5 (2020.01.13) - Add options to change speeds and save settings in EEPROM
  * V1.0.6 (2020.01.13) - Bugfix output1Mode was not being set, had output0Mode instead.
- * V1.0.7 (2020.04.14) - Add options to block or unblock CAN IDs from being transfered, made output settings easier to read.
+ * V1.0.7 (2020.04.14) - Add options to block or unblock CAN IDs from being transferred, made output settings easier to read.
  * V1.0.8 (2020.04.15) - Add save and restore filter list to EEPROM.
  *                       Add help menu
- *                       Bugix listing of outpout levells on CAN0 output
+ *                       Bugfix listing of output levels on CAN0 output 
  * 
  * Notes: 83.333K is fault tolerant and looks like is may be single ended.
  * 1. From radio leave CAN-L disconnected, connect CAN-H to CAN-H on Arduino
- * 2. On Arduino connct a 120 Ohm resistor from CAN-L to ground.
+ * 2. On Arduino connect a 120 Ohm resistor from CAN-L to ground.
  * 3. Connect radio ground to Arduino ground.
  * 
  * Notes:
@@ -119,9 +119,10 @@ uint8_t output1Mode = 2; //0=no output, 1=CAN ID only, 2=Full packet
 uint8_t canSpeed = 7;    //6=80Kbps, 7=83.333Kbps, 8=125Kbps, 9=500Kbps
 
 //note update signature version number only when changes break EEPROM parameters
-char EEPROMVERSION[16] = "CANBUSBRIDGE106\0"; //information stored from 0x000 - 0x120
-uint16_t blockedID[128]; //information stored from 0x201 - 0x301
-uint8_t blockedIDcount = 0; //information stored at 0x200
+char EEPROMVERSION[16] = "CANBUSBRIDGE108\0"; //information stored from 0x0000 - 0x000F
+uint8_t blockedIDcount = 0; //information stored at 0x0023
+uint16_t blockedID[128]; //information stored from 0x00100 - 0x001FF
+
 
 String SerialRXBuffer = "";
 bool SerialRXSpecial = false;
@@ -136,7 +137,7 @@ void setup()
 
   SPI.begin();
 
-  Serial.println("CANBUS Bridge V1.0.7");
+  Serial.println("CANBUS Bridge V1.0.8");
   eepromRead();           //read settings from EEPROM
   canSetup();             //setup CAN chips
   serialOutMode();        //display output mode
@@ -210,9 +211,9 @@ void eepromSave()
 {
   //Note: there is only 1K of space on the UNO
   EEPROM.put(0x0000, EEPROMVERSION);
-  EEPROM.put(0x0100, canSpeed);
-  EEPROM.put(0x0110, output0Mode);
-  EEPROM.put(0x0120, output1Mode);
+  EEPROM.put(0x0020, canSpeed);
+  EEPROM.put(0x0021, output0Mode);
+  EEPROM.put(0x0022, output1Mode);
 }
 
 void eepromRead()
@@ -221,27 +222,27 @@ void eepromRead()
   EEPROM.get(0x0000, ID);
   if (strcmp(ID, EEPROMVERSION) == 0)
   {
-    EEPROM.get(0x0100, canSpeed);
-    EEPROM.get(0x0110, output0Mode);
-    EEPROM.get(0x0120, output1Mode);    
+    EEPROM.get(0x0020, canSpeed);
+    EEPROM.get(0x0021, output0Mode);
+    EEPROM.get(0x0022, output1Mode);    
   }
 }
 
 void eepromSaveFilters()
 {
   //Note: there is only 1K of space on the UNO
-  EEPROM.put(0x0200, blockedIDcount);
+  EEPROM.put(0x0023, blockedIDcount);
   for (uint8_t x = 0; x < blockedIDcount; x++)
-    EEPROM.put(0x0201 + (x*2), blockedID[x]);
+    EEPROM.put(0x0100 + (x*2), blockedID[x]);
 }
 void eepromReadFilters()
 {
-  EEPROM.get(0x0200, blockedIDcount);
+  EEPROM.get(0x0023, blockedIDcount);
   if (blockedIDcount > 128)
     blockedIDcount = 0;
 
   for (uint8_t x = 0; x < blockedIDcount; x++)
-    EEPROM.get(0x0201 + (x*2), blockedID[x]);
+    EEPROM.get(0x0100 + (x*2), blockedID[x]);
 }
 
 void loop()
@@ -330,9 +331,9 @@ void loop()
           Serial.println(F("CAN Bridge, a logging and filtering tool"));
           Serial.println(F("----------------------------------------")); delay(1);
           Serial.println(F("OUTPUT FORMATTING"));
-          Serial.println(F("   0 = CAN0 no output")); delay(1);
-          Serial.println(F("   1 = CAN0 output ID only"));
-          Serial.println(F("   2 = CAN0 output full packet data")); delay(1);
+          Serial.println(F("   1 = CAN0 no output")); delay(1);
+          Serial.println(F("   2 = CAN0 output ID only"));
+          Serial.println(F("   3 = CAN0 output full packet data")); delay(1);
           Serial.println();
           Serial.println(F("   A = CAN1 no output")); delay(1);
           Serial.println(F("   B = CAN1 output ID only"));
@@ -344,15 +345,15 @@ void loop()
           Serial.println(F("   8 = CAN0,1 125Kbps"));
           Serial.println(F("   9 = CAN0,1 500Kbps")); delay(1);
           Serial.println();
-          Serial.println(F("   M = Display settings moded")); delay(1);
+          Serial.println(F("   M = Display settings modes")); delay(1);
           Serial.println();   
           Serial.println(F("CAN ID FILTERING")); delay(1);
           Serial.println(F("   +xxx = Add filter to ID xxx, where xxx is the ID in hex"));
           Serial.println(F("   -xxx = Remove filter from ID xxx, where xxx is the ID in hex")); delay(1);
           Serial.println(F("   S = Store filter set to EEPROM"));
           Serial.println(F("   R = Restore filter set from EEPROM")); delay(1);
-          Serial.println(F("   D = Delete filter set from RAM"));
-          Serial.println(F("   L = List filter set in RAM")); delay(1);
+          Serial.println(F("   D = Delete active filter set"));
+          Serial.println(F("   L = List active filter set")); delay(1);
           Serial.println(F("----------------------------------------"));
           Serial.println();
           break;
