@@ -218,7 +218,7 @@ void eepromSave()
 
 void eepromRead()
 {
-  char ID[16];
+  char ID[sizeof(EEPROMVERSION)];
   EEPROM.get(0x0000, ID);
   if (strcmp(ID, EEPROMVERSION) == 0)
   {
